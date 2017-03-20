@@ -17,7 +17,7 @@ After you install Wyvern, you will have a wyvern folder in your web site's publi
       };
     });
 
-That's it!  You've just created your first module.  Now your module won't do anything until you attache it to something.  Let's load up Wyvern on an HTML page and attach our module to an element.  Create an `index.html` in your public folder.  Then put this code in it:
+That's it!  You've just created your first module.  Now your module won't do anything until you attach it to something.  Let's load up Wyvern on an HTML page and attach our module to an element.  Create an `index.html` in your public folder.  Then put this code in it:
 
 ## index.html ##
 
@@ -25,6 +25,7 @@ That's it!  You've just created your first module.  Now your module won't do any
     <html>
       <head>
         <title>My First Wyvern Project</title>
+        <script src="js/wyvern.js"></script>
       </head>
       <body>
         <h1>Welcome to Wyvern</h1>
