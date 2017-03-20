@@ -7,7 +7,7 @@ Wyvern lives by a simple concept: be available when you need it.  Additionally, 
 # Hello World
 After you install Wyvern, you will have a wyvern folder in your web site's public directory.  From here, Wyvern stores its modules in the aptly named `modules` folder.  To begin creating your first module, create a new folder in the `modules` folder and name it `hello`.  Next, create a `hello.js` inside your newly created `hello` folder.  Put this in `hello.js`:
 
-##hello.js
+## hello.js ##
 
     wyvern.define(function() {
       return {
@@ -18,6 +18,8 @@ After you install Wyvern, you will have a wyvern folder in your web site's publi
     });
 
 That's it!  You've just created your first module.  Now your module won't do anything until you attache it to something.  Let's load up Wyvern on an HTML page and attach our module to an element.  Create an `index.html` in your public folder.  Then put this code in it:
+
+## index.html ##
 
     <!DOCTYPE html>
     <html>
