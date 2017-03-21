@@ -1,0 +1,29 @@
+<!-- A demo Katana view -->
+<div>
+    <!-- Display model fields directly -->
+    <h1>{{ title }}</h1>
+    <p> {{ content }} </p>
+    <!--
+        Call a javascript statement directly.
+        Note that the '@' symbol must be the first
+        non-whitespace character to initiate javascript
+        code.
+     -->
+    @if (items.length)
+    <h2>Items in the Collection</h2>
+    <ul>
+        <!--
+            '@each' is a special construct which will
+            go through each member of an array much
+            like Java or C#.
+        -->
+        @each (var item in items)
+        <!-- Display the 'item' in our 'items' list -->
+        <li>{{item}}</li>
+        @end <!-- End @each -->
+    </ul>
+    @end <!-- End @if -->
+    @else <!-- If no length, do this instead -->
+    <p>There is no content to display</p>
+    @end <!-- End @else -->
+</div>

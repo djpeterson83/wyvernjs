@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+	<meta charset="utf-8" />
+
+    <!-- Load Wyvern -->
+    <script src="js/wyvern.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Abel');
+
+        h1, h2, h3, h4, h5, h6 {
+            color: #ff5900;
+        }
+
+        body {
+            margin: 16px auto;
+            background: #262d3a;
+            color: #d9dde2;
+            font-family: 'Abel', sans-serif;
+            text-shadow: 1px 1px #000;
+        }
+        .aligned {
+            max-width: 1024px;
+            margin:0 auto;
+        }
+        .panel {
+            background: #2e3a49;
+            padding: 32px;
+            font-size: 2em;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dynamically load a module into this div -->
+    <div class="aligned panel" data-wyvern="demo-module:display" ></div>
+</body>
+</html>
