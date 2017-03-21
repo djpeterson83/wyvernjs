@@ -267,12 +267,53 @@
     // Add an event listener to a given source element with the given event and callback //
     Wyvern.prototype.addEventListener = function(source, evnt, callback) {
         if (source != null) {
+            source.$wyvern = source.$wyvern || {};
+            source.$wyvern.listeners = source.$wyvern.listeners || {};
+            source.$wyvern.listeners[evnt] = source.$wyvern.listeners[evnt] || [];
+            source.$wyvern.listeners[evnt].push(callback);
             if (typeof source.addEventListener === 'function')
-                source.addEventListener(evnt, function (event) { callback(event); }, false);
+                source.addEventListener(evnt, callback, false);
             else if (typeof source.attachEvent === 'function')
-                source.attachEvent("on" + evnt, function (event) { callback(event); });
+                source.attachEvent("on" + evnt, callback);
             else
                 throw new Error("Unable to attach event");
+        }
+    }
+
+    Wyvern.prototype.removeEventListener = function (source, evnt, callback) {
+        if (source.$wyvern && source.$wyvern.listeners && source.$wyvern.listeners[event]) {
+            var newListeners = [];
+            for (var i = 0; i < source.$wyvern.listeners[event]; i++) {
+                if (source.$wyvern.listeners[event][i] !== callback) {
+                    newListeners.push(source.$wyvern.listeners[event][i]);
+                }
+            }
+            source.$wyvern.listeners[event] = newListeners;
+        }
+        if (typeof (source.removeEventListener) === 'function')
+            source.removeEventListener(evnt, callback);
+        else if (typeof (source.detatchEvent === 'function'))
+            source.detatchEvent('on' + evnt, callback);
+    }
+
+    Wyvern.prototype.cleanupEventListeners = function (source, recursive) {
+        if (source.$wyvern && source.$wyvern.listeners) {
+            for (var evnt in source.$wyvern.listeners) {
+                if (source.$wyvern.listeners.hasOwnProperty(evnt)) {
+                    for (var i = 0; i < source.$wyvern.listeners[evnt].length; i++) {
+                        var callback = source.$wyvern.listeners[evnt][i];
+                        if (typeof (source.removeEventListener) === 'function')
+                            source.removeEventListener(evnt, callback);
+                        else if (typeof (source.detatchEvent === 'function'))
+                            source.detatchEvent('on' + evnt, callback);
+                    }
+                    source.$wyvern.listeners[evnt] = [];
+                }
+            }
+        }
+        if (recursive) {
+            for (var i = 0; i < source.childNodes.length; i++)
+                this.cleanupEventListeners(source.childNodes[i], recursive);
         }
     }
 
@@ -356,6 +397,7 @@
                 // Notify all modules for this node that it is being released //
                 for (var i = 0; i < mutation.removedNodes.length; i++) {
                     var node = mutation.removedNodes[i];
+                    wyvern.cleanupEventListeners(node, true);
                     if (typeof node.$wyvern === 'object' && Array.isArray(node.$wyvern.modules)) {
                         for (var m = 0; m < node.$wyvern.modules.length; m++) {
                             var module = node.$wyvern.modules[m];
