@@ -11,7 +11,8 @@ wyvern.define([wyvern.templating.engine], function (templator) {
     }
 
     var buildView = function (node, content, model, registerModel) {
-        var nodes = templator(content, model);
+        var nodes = templator(content, model).nodes();
+        if (typeof nodes === 'undefined' || typeof nodes === 'null') throw new Error("Templator failed to return nodes.");
         clearNodes(node);
         while (nodes.length) {
             node.appendChild(nodes[0]);
@@ -40,6 +41,11 @@ wyvern.define([wyvern.templating.engine], function (templator) {
                 buildView(node, cache[name].content, model, true);
         }
     }
+
+    // Another way to load a view.  Useful for loading a view directly into another view //
+    view.include = function (name, model, node) {
+        return view(name, node, model);
+    };
 
     // Refresh a model.  This will reload any views attached the model //
     view.refresh = function (model) {
