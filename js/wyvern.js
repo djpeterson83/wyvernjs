@@ -79,6 +79,7 @@
         return result;
 
     };
+    Wyvern.prototype.given = Wyvern.given;
     Wyvern.prototype.constructor = Wyvern;
     Wyvern.prototype.module = Wyvern.module;
 
@@ -331,7 +332,7 @@
                     if (typeof module !== 'object') throw new Error("module must be object");
                     if (typeof moduleName !== 'string') throw new Error("moduleName must be string");
                     if (typeof module[functionName] === 'function')
-                        wyvern.addEventListener(node, eventName, function (event) { new Function('fn', 'event', "fn(" + argString + (argString.length ? ', ' : '') + "event);")(module[functionName], event); });
+                        wyvern.addEventListener(node, eventName, function (event) { new Function('fn', 'event', 'module', "fn.call(module, " + argString + (argString.length ? ', ' : '') + "event);")(module[functionName], event, module); });
                         //wyvern.addEventListener(node, eventName, function (event) { module[functionName].apply(null,[event]); });
                     else
                         throw new Error("Callback function not found: " + moduleName + "." + functionName);
@@ -370,7 +371,7 @@
                                 }
                                 else if (eventName === null) {
                                     if (typeof module[functionName] !== 'function') throw new Error('Module member is not a function: ' + moduleName + '.' + functionName);
-                                    new Function('fn', 'node', "fn(" + argString + (argString.length ? ", " : '') + "node);")(module[functionName], node);
+                                    new Function('fn', 'node', 'module', "fn.call(module, " + argString + (argString.length ? ", " : '') + "node);")(module[functionName], node, module);
                                 }
                                 else
                                     applyListener(node, eventName, functionName, module, moduleName, argString);
@@ -468,7 +469,7 @@
     Wyvern.given(window).on('load', function () {
         global.wyvern.run(['katana'], function (katana) {
             Wyvern.template = katana;
-            wyvern.applyDOMListeners(document.body);
+            wyvern.applyDOMListeners(document.documentElement);
         });
     });
 
