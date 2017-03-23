@@ -147,6 +147,8 @@
             this.loadDependenciesThen(dependencies, function (depArray) {
                 // This will eventually pass the dependencies to the builder in order //
                 me.module[name] = builder.apply(null, depArray);
+                // Make sure we actually got something back //
+                if (typeof me.module[name] === 'undefined') throw new Error("Module returned undefined: " + name);
                 if (typeof continuation == 'function') continuation();
             });
         }
