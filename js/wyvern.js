@@ -143,11 +143,16 @@
         var builder = arguments.length > 1 ? arguments[1] : arguments[0];   // The function to call which constructs a module instance
 
         // Load dependencies for this module, then build it //
-        this.loadDependenciesThen(dependencies, function (depArray) {
-            // This will eventually pass the dependencies to the builder in order //
-            me.module[name] = builder.apply(null, depArray);
+        if (typeof me.module[name] === 'undefined') {
+            this.loadDependenciesThen(dependencies, function (depArray) {
+                // This will eventually pass the dependencies to the builder in order //
+                me.module[name] = builder.apply(null, depArray);
+                if (typeof continuation == 'function') continuation();
+            });
+        }
+        else {
             if (typeof continuation == 'function') continuation();
-        });
+        }
     }
 
     Wyvern.prototype.import = function (name, callback) {
@@ -318,66 +323,135 @@
         }
     }
 
+    var extract = function (directive, node) {
+
+        // Append a series of argument to the end of each top-level call in a command //
+        var appendToCall = function (command, args) {
+
+
+            // Turn this into a call if it is not //
+            if (command.indexOf('(') < 0)
+                command = command + "()";
+
+            // Join the arguments into a nice comma separated string first //
+            var argsText = args.join(', ');
+            var result = '';
+            var level = 0;
+            var begin = 0;
+
+            // We figure out where the top level commands are by counting parenthesis //
+            // Once a top level ')' is found, we inject our args into the call //
+            for (var i = 0; i < command.length; i++) {
+                if (command[i] == '(') {
+                    level++;
+                    if (level == 1) begin = i + 1;
+                }
+                if (command[i] == ')') {
+                    if (level == 1) {
+                        var x = command.substring(begin, i).trim();
+                        result += (command.substring(begin, i).trim().length > 0 ? ', ' : '') + args + ')';
+                    }
+                    else {
+                        result += ')';
+                    }
+                    level--;
+                }
+                else {
+                    result += command[i];
+                }
+            }
+
+            return result;
+        }
+
+        var cleanCommand = function (command) {
+            // Remove comments //
+            return command
+                .replace(/\/\*.*\*\//g, '')
+                .replace(/\/\/.*/g, '');
+        }
+
+        if (typeof directive === 'string') {
+            var directives = [];
+            // Multiple commands supported //
+            var commands = directive.split(';');
+            // Go through all commands and parse them into directives //
+            for (var i = 0; i < commands.length; i++) {
+                // Left side of ':' is module info including name and optional evnet //
+                var pivot = commands[i].indexOf(':');
+                if (pivot >= 0) {
+                    // Get directive parts from moduleParts and command parts.  Format: module.event:command(...) //
+                    var moduleParts = commands[i].substr(0, pivot).split('.');
+                    var moduleName = moduleParts.length > 0 ? moduleParts[0].trim() : null;
+                    var eventName = moduleParts.length > 1 ? moduleParts[1].trim() : null;
+                    var command = cleanCommand(commands[i].substr(pivot + 1)).trim();
+                    var memberName = command.substr(0, command.indexOf('(')).trim();
+                    var isCallback = eventName !== 'bind';
+                    if (!memberName || memberName.length == 0) memberName = command;
+                    // Finally, push the new directive and build callbacks as necessary for executing this directive //
+                    directives.push({
+                        moduleName: moduleName,
+                        eventName: eventName,
+                        memberName: memberName,
+                        command: command,
+                        commandCallback: isCallback ? new Function('module', 'node', 'with (module) { return (' + appendToCall(command, ['node']) + '); }') : null,
+                        eventCallback: isCallback ? new Function('module', 'event', 'with (module) { return (' + appendToCall(command, ['event']) + '); }') : null,
+                    });
+                }
+            }
+            return directives;
+        }
+    }
+
     // Applies event listeners to DOM changes //
     Wyvern.prototype.applyDOMListeners = function (source) {
-        //var wyvern = this.into({ source: source });
         var wyvern = new Wyvern({ source: source });
         var apply = function (node) {
             if (typeof node.getAttribute == 'function') {
-                var directive = node.getAttribute("data-wyvern");
-                var applyListener = function (node, eventName, functionName, module, moduleName, argString) {
-                    argString = argString ? argString : ''
-                    if (typeof eventName !== 'string') throw new Error("eventName must be string");
-                    if (typeof functionName !== 'string') throw new Error("functionName must be string");
-                    if (typeof module !== 'object') throw new Error("module must be object");
-                    if (typeof moduleName !== 'string') throw new Error("moduleName must be string");
-                    if (typeof module[functionName] === 'function')
-                        wyvern.addEventListener(node, eventName, function (event) { new Function('fn', 'event', 'module', "fn.call(module, " + argString + (argString.length ? ', ' : '') + "event);")(module[functionName], event, module); });
-                        //wyvern.addEventListener(node, eventName, function (event) { module[functionName].apply(null,[event]); });
-                    else
-                        throw new Error("Callback function not found: " + moduleName + "." + functionName);
+                
+                var applyListener = function (directive, module, node) {
+                    wyvern.addEventListener(node, directive.eventName, function (event) { directive.eventCallback(module, event); });
                 }
-                if (typeof directive === 'string') {
-                    // Parse 
-                    var parts = [directive.substring(0, directive.indexOf(':')), directive.substring(directive.indexOf(':') + 1)];
-                    if (parts.length > 2 || parts.length < 1) throw new Error("Module load directive expects 'controller:function': " + directive);
-                    var moduleParts = parts[0].split('.');
-                    var functionName = parts.length > 1 ? parts[1] : null;
-                    var moduleName = moduleParts[0];
-                    var eventName = moduleParts.length > 1 ? moduleParts[1] : null;
-                    wyvern.import(moduleName, function (module) {
 
-                        // Add this module to the DOM element //
-                        node.$wyvern = node.$wyvern || {
-                            modules: []
-                        };
-                        node.$wyvern.modules.push(module);
+                var directives = extract(node.getAttribute("data-wyvern"));
 
-                        if (module !== null && module.listeners !== null) {
+                if (typeof directives === 'object') {
+                    for (var m = 0; m < directives.length; m++) {
 
-                            var argString = '';
-                            if (functionName.indexOf('(') >= 0) {
-                                argString = functionName.substring(functionName.indexOf('(') + 1, functionName.lastIndexOf(')'));
-                                functionName = functionName.substr(0, functionName.indexOf('('));
-                            }
+                        (function (m) {
+                            var directive = directives[m];
+                            // Import the module //
+                            wyvern.import(directive.moduleName, function (module) {
 
-                            if (functionName !== null) {
-                                if (eventName === 'bind') {
-                                    // Do nothing right now //
-                                    var fnSet = new Function('node', 'module', "with(module) { " + functionName + " = node.value; }");
-                                    var fnGet = new Function('node', 'module', "with(module) { node.value = " + functionName + " }");
-                                    fnGet(node, module);
-                                    wyvern.addEventListener(node, 'change', function () { fnSet(node, module); });                                    
+                                // Add this module to the DOM element //
+                                node.$wyvern = node.$wyvern || {
+                                    modules: []
+                                };
+                                node.$wyvern.modules.push(module);
+
+                                if (module !== null && module.listeners !== null) {
+
+                                    if (directive.command !== null) {
+                                        if (directive.eventName === 'bind') {
+                                            // Do nothing right now //
+                                            var fnSet = new Function('node', 'module', "with(module) { " + directive.command + " = node.value; }");
+                                            var fnGet = new Function('node', 'module', "with(module) { node.value = " + directive.command + " }");
+                                            fnGet(node, module);
+                                            wyvern.addEventListener(node, 'change', function () { fnSet(node, module); });
+                                        }
+                                        else if (directive.eventName === null) {
+                                            if (typeof module[directive.memberName] !== 'function')
+                                                throw new Error('Module member is not a function: ' + directive.moduleName + '.' + directive.memberName);
+                                            directive.commandCallback(module, node);
+                                        }
+                                        else {
+                                            applyListener(directive, module, node);
+                                        }
+                                    }
                                 }
-                                else if (eventName === null) {
-                                    if (typeof module[functionName] !== 'function') throw new Error('Module member is not a function: ' + moduleName + '.' + functionName);
-                                    new Function('fn', 'node', 'module', "fn.call(module, " + argString + (argString.length ? ", " : '') + "node);")(module[functionName], node, module);
-                                }
-                                else
-                                    applyListener(node, eventName, functionName, module, moduleName, argString);
-                            }
-                        }
-                    });
+                            });
+                        })(m);
+                    }
                 }
             }
         }
