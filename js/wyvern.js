@@ -133,6 +133,8 @@
         return name.indexOf('/') == -1 ? name + '/' + name : name;
     }
 
+    Wyvern.pending = function () { };
+
     // Define a new module //
     Wyvern.prototype.define = function (/* [dependencies], builder */) {
         // Save some important information which we will look up later //
@@ -142,8 +144,11 @@
         var dependencies = arguments.length > 1 ? arguments[0] : []; // Additional dependencies for this module
         var builder = arguments.length > 1 ? arguments[1] : arguments[0];   // The function to call which constructs a module instance
 
+        if (typeof name !== 'string') throw new Error("Unnamed module attempting to be defined.");
+
         // Load dependencies for this module, then build it //
-        if (typeof me.module[name] === 'undefined') {
+        if (typeof me.module[name] == 'undefined') {
+            me.module[name] = Wyvern.pending;
             this.loadDependenciesThen(dependencies, function (depArray) {
                 // This will eventually pass the dependencies to the builder in order //
                 me.module[name] = builder.apply(null, depArray);
@@ -152,8 +157,18 @@
                 if (typeof continuation == 'function') continuation();
             });
         }
+        else if(me.module[name] === Wyvern.pending){
+            var interval = setInterval(function () {
+                if (me.module[name] !== Wyvern.pending) {
+                    clearInterval(interval);
+                    if (typeof continuation == 'function')
+                        continuation();
+                }
+            }, 50);
+        }
         else {
-            if (typeof continuation == 'function') continuation();
+            if (typeof continuation == 'function')
+                setTimeout(function () { continuation(); });
         }
     }
 
@@ -549,4 +564,4 @@
         });
     });
 
-})(window);
+})(this);
